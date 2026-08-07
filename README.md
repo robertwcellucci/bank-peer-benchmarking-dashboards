@@ -28,19 +28,21 @@ The ranking consequence is severe. FCNCA entered 2024 as the **3rd most profitab
 | HBAN | 0.95% | 0.98% | +3 bp |
 | **FCNCA** | **1.24%** | **0.96%** | **−28 bp** |
 
-*(KeyCorp's outlier gain is not organic operating improvement — it reflects recovery from a FY2024 net loss of −$161M tied to securities repositioning. It is included for completeness, but the finding does not depend on it: nine of the remaining ten peers still improved.)*
+*(KeyCorp's outlier gain is not organic operating improvement — it reflects recovery from a FY2024 net loss of −$161M tied to securities repositioning. It is included for completeness, but the finding does not depend on it: set KeyCorp aside and all nine remaining peers still improved.)*
 
 ### The second half of the finding
 
 The profitability decline did not come with a matching reduction in balance-sheet risk. It came with the opposite.
 
-| Metric | FCNCA FY2024 | FCNCA FY2025 |
+| Metric | FY2024 | FY2025 |
 |---|---:|---:|
-| Equity multiplier (Assets / Equity) | 10.06x | 10.33x |
-| Peer group mean equity multiplier | 10.14x | 9.52x |
-| FCNCA leverage rank (1 = most levered) | 6th of 11 | 3rd of 11 |
+| FCNCA equity multiplier (Assets / Equity) | 10.06x | 10.33x |
+| Peer mean equity multiplier (10 peers, FCNCA excluded) | 10.14x | 9.43x |
+| FCNCA leverage rank (1 = most levered, of 11) | 6th | 3rd |
 
-The peer group **deleveraged** through 2025 — mean equity multiplier fell 0.62x. FCNCA levered up slightly. So over a single fiscal year, FCNCA moved from the middle of the pack on leverage to the third most levered bank in the group, while simultaneously falling from third to tenth on returns.
+The peer group **deleveraged** through 2025 — the mean equity multiplier across the ten peers fell 0.71x. FCNCA levered up slightly. So over a single fiscal year, FCNCA moved from the middle of the pack on leverage to the third most levered bank in the group, while simultaneously falling from third to tenth on returns.
+
+Peer averages throughout this project exclude the subject bank, so that FCNCA is never being compared against a mean it is inside of. For reference, the all-eleven mean equity multiplier is 10.14x → 9.52x; the direction and conclusion are unchanged, but the ten-peer figure is the one the dashboard reports and the one used here.
 
 **Returns down, relative leverage up.** That is the quadrant a credit analyst screens for, and it is visible in twelve months of two balance-sheet line items and one income-statement line item.
 
@@ -83,11 +85,13 @@ The full peer set, both years, with computed ratio columns, conditional formatti
 ## Repository Structure
 
 ```
-├── pull_bank_financials.py        # SEC EDGAR XBRL extraction pipeline
-├── source/bank_financials_long.csv # Pipeline output — 88 rows, tidy long format 
-├── Book1.xlsx                     # Excel layer: Scorecard, wide pivot, source table
-├── Regional_Bank_Peer_Benchmarking_Dashboard.pbix
-└── images/                        # Dashboard screenshots used in this README
+├── pull_bank_financials.py                                  # SEC EDGAR XBRL extraction pipeline
+├── source/bank_financials_long.csv                          # Pipeline output — 88 rows, tidy long format
+├── bank_peer_scorecard.xlsx                                 # Excel layer: Scorecard, wide pivot, source table
+├── Regional Bank Peer Benchmarking Dashboard (Power BI).pbix
+├── images/                                                  # Dashboard screenshots used in this README
+├── LICENSE                                                  # MIT
+└── README.md
 ```
 
 ---
@@ -98,9 +102,9 @@ The full peer set, both years, with computed ratio columns, conditional formatti
 
 The interesting engineering is in the filtering, because raw XBRL is not clean.
 
-### Problem 1: Companies do not all use the same tag
+### Problem 1: There is no single universal tag per concept
 
-There is no single universal tag for "shareholders' equity." Filers choose between `StockholdersEquity` and `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest` depending on their corporate structure. Net income has at least three plausible tags.
+Shareholders' equity is reported under either `StockholdersEquity` or `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`. Net income has at least three plausible tags. A single-tag pull silently drops filers.
 
 The script defines an **ordered fallback list** per concept and merges lowest-priority first, so higher-priority tags overwrite:
 
@@ -115,7 +119,9 @@ CONCEPT_TAGS = {
 }
 ```
 
-This achieves 100% coverage — 88 of 88 expected company-year-concept cells populated, zero gaps. It also introduces a documented tradeoff, discussed under Limitations.
+This achieves 100% coverage — 88 of 88 expected company-year-concept cells populated, zero gaps.
+
+Two things to be precise about, because they are easy to overstate. First, the ordering means a filer that reports **both** equity tags resolves to the NCI-inclusive one; the split observed in the output is therefore partly a consequence of this priority order, not purely a statement about filer behavior. Second, in practice the fallbacks were barely exercised: all 22 net income values resolved from `NetIncomeLoss`, and no company-year needed the second or third tag. The fallback list is insurance that did not have to pay out on this peer set. Both points are revisited under Limitations.
 
 ### Problem 2: The same fiscal year appears more than once
 
@@ -125,11 +131,13 @@ Two deduplication passes handle this. `deduplicate_by_end_date` keeps only the *
 
 ### Problem 3: Annual versus quarterly windows
 
-Duration-type facts carry start and end dates. `is_annual_window` computes the span and keeps only periods of 350–380 days, which excludes quarterly and transition-period facts that would otherwise contaminate the net income series.
+Duration-type facts carry start and end dates. `is_annual_window` computes the span and keeps only periods of 350–380 days, which excludes quarterly and transition-period facts that would otherwise contaminate the net income series. Instant-type facts (Assets, Equity) carry no start date and pass through.
 
 ### Problem 4: Missing liabilities
 
-Some filers omit a total `Liabilities` tag entirely. When Assets and Equity are both present, `add_derived_liabilities` computes the difference and writes it with `source_tag = "derived_Assets_minus_Equity"` — **flagged in the output**, not silently imputed. Any downstream consumer can filter derived values out.
+Some filers omit a total `Liabilities` tag entirely. When Assets and Equity are both present, `add_derived_liabilities` computes the difference and writes it with `source_tag = "derived_Assets_minus_Equity"` — **flagged in the output**, not silently imputed, so any downstream consumer can filter derived values out.
+
+For this peer set the fallback did not fire: all 22 company-year Liabilities values resolved from the `Liabilities` tag directly. It is defensive code, and the output confirms it was not needed here.
 
 ### Validation: the balance sheet has to balance
 
@@ -139,7 +147,7 @@ Before writing the CSV, `sanity_check` verifies **Assets = Liabilities + Equity*
 FCNCA FY2024: Assets=223,720,000,000 vs L+E=223,720,000,000 (diff 0.00%)
 ```
 
-Across all 22 company-years the maximum observed discrepancy is **6.2 × 10⁻⁶** (0.0006%), attributable to rounding at the reporting-unit level. This is the check that catches a bad pull before it reaches Power BI, where a wrong number looks exactly as authoritative as a right one.
+Across all 22 company-years the maximum observed discrepancy is **0.00062%** (6.2 × 10⁻⁶ expressed as a fraction), attributable to rounding at the reporting-unit level. This is the check that catches a bad pull before it reaches Power BI, where a wrong number looks exactly as authoritative as a right one.
 
 ---
 
@@ -165,7 +173,7 @@ The `is_subject` boolean flag on the dimension is the design decision that does 
 | `Peer Rank` | Descending rank on ROA % within the fiscal year |
 | `Peer Rank (Equity Multiplier)` | Descending rank on leverage within the fiscal year |
 
-Ranks are computed within the fiscal-year filter context, so switching the year slicer re-ranks the entire group rather than returning a stale ordering.
+Ranks are computed within the fiscal-year filter context, so switching the year slicer re-ranks the entire group rather than returning a stale ordering. Ranks are taken across all eleven banks — the subject is excluded from *averages*, not from *rankings*, since a rank of "3rd of 11" is only meaningful if the subject is one of the eleven.
 
 ---
 
@@ -176,7 +184,7 @@ The Excel workbook is deliberately built on the same long-format CSV, not a pre-
 | Sheet | Purpose |
 |---|---|
 | **Scorecard** | Head-to-head comparison: selected peer versus FCNCA for a selected fiscal year |
-| **bank_financials_wide_full** | Pivot of the full peer set with computed ratio columns, slicers, and charts |
+| **bank_financials_wide_full** | PivotTable over the full peer set with computed ratio columns, slicers, and a net income chart |
 | **bank_financials_long** | The pipeline output as an Excel Table — the single source both sheets read from |
 
 ### Three-condition lookup without a helper column
@@ -194,11 +202,13 @@ Pulling one value out of tidy long data requires matching on ticker **and** fisc
 
 Each comparison returns a TRUE/FALSE array; multiplying them coerces to 1/0 and yields 1 only on the row satisfying all three conditions. The nested `IF` reconciles the display label (`NetIncomeLoss`, the XBRL tag name) with the stored concept value (`NetIncome`) so the row labels can stay filing-accurate without breaking the match.
 
-The peer ticker in `B3` is driven by a data-validation dropdown and the fiscal year in `B2` by a second selector, so the entire scorecard — including derived ROA and leverage ratio — recalculates on a single cell change.
+The ROA and Leverage Ratio rows run the same lookup twice and divide, so the ratios are derived live from the long table rather than from the displayed cells above them — the two rows are independent of each other and of any manual entry.
+
+The fiscal year in `B2` is driven by a data-validation list; the peer ticker in `B3` is driven by a second data-validation list sourced from the `ticker` column of the long table. The entire scorecard — including derived ROA and leverage ratio — recalculates on a single cell change. See Known Issues for a caveat on how that second list is currently defined.
 
 ### Wide table
 
-The pivot carries `IFERROR`-wrapped ratio columns (`=IFERROR(B6/C6,"")`) so that a missing denominator produces a blank rather than `#DIV/0!` polluting the conditional formatting scale. Slicers on `fiscal_year` and `company` filter both the table and the linked net income chart together.
+The PivotTable is built over the `bank_financials_long` table (88 records) and carries `IFERROR`-wrapped ratio columns (`=IFERROR(B6/C6,"")`) so that a missing denominator produces a blank rather than `#DIV/0!` polluting the conditional formatting scale. Row and column grand totals are suppressed, since a grand total of a ratio column would be meaningless. Slicers on `fiscal_year` and `company` filter both the table and the linked net income chart together.
 
 ---
 
@@ -208,13 +218,19 @@ Stated plainly, because each one bounds what the finding can claim.
 
 **ROA uses year-end assets, not average assets.** Standard practice is to divide net income by *average* assets over the period, since income is earned across the year while the balance sheet is a point-in-time snapshot. This dashboard uses period-end assets. For a bank growing assets, that understates ROA slightly. The bias is consistent across all eleven banks and both years, so relative comparisons and rank orderings hold — but the absolute ROA figures are not directly comparable to a bank's published ROA.
 
-**Four banks resolve to an NCI-inclusive equity tag.** HBAN, RF, WAL, and WBS report equity under `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`; the other seven use `StockholdersEquity`. Each bank is internally consistent across both years, so year-over-year comparisons within a bank are sound. Cross-sectional equity multiplier comparisons carry a small definitional inconsistency, biasing those four banks' multipliers marginally downward. FCNCA uses the plain tag, so the leverage finding is not an artifact of this.
+**Four banks resolve to an NCI-inclusive equity tag, and the resulting bias runs toward the conclusion.** HBAN, RF, WAL, and WBS resolve to `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`; the other seven, including FCNCA, resolve to `StockholdersEquity`. NCI-inclusive equity is the larger figure, so those four banks' equity multipliers are biased marginally *downward*, which pulls the peer mean down and therefore makes FCNCA look marginally *more* levered relative to peers than a like-for-like comparison would.
+
+Noting that FCNCA uses the plain tag is not sufficient defense, because the finding is relative. The finding survives a direct sensitivity test instead: stripping an assumed noncontrolling interest of 1% and then 3% of reported equity from all four banks — well above typical NCI levels for regional bank holding companies — leaves FCNCA's leverage rank at 6th in FY2024 and 3rd in FY2025 in both cases, and leaves the peer mean falling year over year in both cases. The ranking result is not an artifact of tag selection.
+
+Year-over-year comparisons within any single bank are unaffected regardless, since each bank resolves to the same tag in both years.
 
 **FY2024 figures are comparative-period restatements.** All 88 rows come from a single accession per ticker — the FY2025 10-K. FY2024 values are the prior-year comparatives as restated in that filing, not the figures originally published in the FY2024 10-K. This is the correct choice for consistency, but it is not "what the market saw in early 2025."
 
 **No income-statement decomposition.** The pipeline pulls net income as a single line. It can establish *that* FCNCA's returns fell while peers' rose; it cannot establish *why*. Net interest margin compression, credit provisioning, non-interest expense, and one-time items are all candidate drivers, and separating them would require pulling the full income statement.
 
-**Small sample, short window.** Eleven banks, two fiscal years. The negative leverage-to-ROA correlation (r = −0.18 and −0.36) is directionally consistent with the broader 242-bank sample in the companion [Bank Leverage & Efficiency Dashboard](https://github.com/robertwcellucci/bank-leverage-efficiency-dashboard) project (r = −0.30), but at n = 11 it is not independently significant.
+**Accounting leverage, not regulatory capital.** Assets ÷ Equity is not Tier 1, is not risk-weighted, and says nothing about asset quality. This is a screening ratio, not a capital adequacy assessment.
+
+**Small sample, short window.** Eleven banks, two fiscal years. The negative leverage-to-ROA correlation (r = −0.18 and −0.36) is directionally consistent with the broader 242-bank sample in the companion [Bank Leverage & Efficiency Dashboard](https://github.com/robertwcellucci/Bank-Leverage-Efficiency-Dashboard) project (r = −0.30), but at n = 11 it is not independently significant.
 
 ---
 
@@ -227,12 +243,18 @@ python3 pull_bank_financials.py
 
 The SEC requires a descriptive `User-Agent` header identifying the requester and a contact method; requests without one are throttled or blocked. Update `HEADERS` in the script before running. The script sleeps 0.2s between tickers to stay under the SEC's rate limit.
 
-Output is written to `bank_financials_long.csv`. Both the Excel workbook and the Power BI model read from that file — refresh the Power Query connection and the workbook's source table to update the dashboards.
+Output is written to `bank_financials_long.csv` in the working directory; the tracked copy in this repository sits at `source/bank_financials_long.csv`. Both the Excel workbook and the Power BI model read from that file — refresh the Power Query connection and the workbook's source table to update the dashboards.
 
-To retarget the analysis at a different subject bank, change `SUBJECT` and `PEERS` at the top of the script, then update the `is_subject` flag in `DIM_Company`.
+To retarget the analysis at a different subject bank, change `SUBJECT` and `PEERS` at the top of the script, then update the `is_subject` flag in `DIM_Company` and re-point the Scorecard's `B3` data validation (see Known Issues).
 
 ---
 
 ## Data Source
 
 U.S. Securities and Exchange Commission, XBRL `companyfacts` API — `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`. Form types restricted to 10-K and 10-K/A. All figures as filed; no manual adjustments.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
