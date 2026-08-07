@@ -84,7 +84,7 @@ The full peer set, both years, with computed ratio columns, conditional formatti
 
 ```
 ├── pull_bank_financials.py        # SEC EDGAR XBRL extraction pipeline
-├── bank_financials_long.csv       # Pipeline output — 88 rows, tidy long format
+├── source/bank_financials_long.csv # Pipeline output — 88 rows, tidy long format 
 ├── Book1.xlsx                     # Excel layer: Scorecard, wide pivot, source table
 ├── Regional_Bank_Peer_Benchmarking_Dashboard.pbix
 └── images/                        # Dashboard screenshots used in this README
