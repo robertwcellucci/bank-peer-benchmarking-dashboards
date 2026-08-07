@@ -214,7 +214,7 @@ Stated plainly, because each one bounds what the finding can claim.
 
 **No income-statement decomposition.** The pipeline pulls net income as a single line. It can establish *that* FCNCA's returns fell while peers' rose; it cannot establish *why*. Net interest margin compression, credit provisioning, non-interest expense, and one-time items are all candidate drivers, and separating them would require pulling the full income statement.
 
-**Small sample, short window.** Eleven banks, two fiscal years. The negative leverage-to-ROA correlation (r = −0.18 and −0.36) is directionally consistent with the broader ~260-bank sample in the companion [Bank Leverage & Efficiency Dashboard](https://github.com/robertwcellucci/bank-leverage-efficiency-dashboard) project (r = −0.30), but at n = 11 it is not independently significant.
+**Small sample, short window.** Eleven banks, two fiscal years. The negative leverage-to-ROA correlation (r = −0.18 and −0.36) is directionally consistent with the broader 242-bank sample in the companion [Bank Leverage & Efficiency Dashboard](https://github.com/robertwcellucci/bank-leverage-efficiency-dashboard) project (r = −0.30), but at n = 11 it is not independently significant.
 
 ---
 
