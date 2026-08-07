@@ -34,7 +34,7 @@ CONCEPT_TAGS = {
 }
 
 ALLOWED_FORMS = ("10-K", "10-K/A")
-OUTPUT_PATH = "bank_financials_long.csv"
+OUTPUT_PATH = "source/bank_financials_long.csv"
 
 
 # ==========================================
