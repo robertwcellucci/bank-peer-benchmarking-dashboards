@@ -1,4 +1,4 @@
-# Regional Bank Peer Benchmarking Dashboard
+# Bank Peer Benchmarking Dashboards
 
 **One bank in an eleven-bank peer group got worse in 2025. Every other bank got better.**
 
